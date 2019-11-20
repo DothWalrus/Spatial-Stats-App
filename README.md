@@ -15,3 +15,4 @@ Installation and Usage:
   Ensure that a MAT file has been generated in your "Current Folder".
   Checking "debug" will generate 11 figures of various parts of the image analysis.
   If necessary adjust the "Threshold" slider to more or less severe thresholding to get the correct nuclei.
+  Note figures can be closed individually, or all at once by clicking "Close Figures".
