@@ -1,2 +1,2 @@
 # Spatial-Stats-App
-App used to locate dendritic cell nuclie in images of gastric mucosa.
+App used to locate dendritic cell nuclei in images of gastric mucosa.
