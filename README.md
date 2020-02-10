@@ -13,6 +13,7 @@ Installation and Usage:
   Set the "Nuclei Channel" and "DC Channel" spinners to the corresponding channels as seen in the TIF channels.
   Click "Run" and note the figure generated is a visualization of the image analysis pipeline.
   Ensure that a MAT file has been generated in your "Current Folder".
-  Checking "debug" will generate 11 figures of various parts of the image analysis.
+  Checking "debug" will generate 13 figures of various parts of the image analysis.
   If necessary adjust the "Threshold" slider to more or less severe thresholding to get the correct nuclei.
+  Threshold values are between 0 and 1.
   Note figures can be closed individually, or all at once by clicking "Close Figures".
