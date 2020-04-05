@@ -14,7 +14,7 @@ class spatial_randomness_functions(object):
 
     def compute_roi_mask_and_border(self, img, intensity_threshold, blob_count_threshold):
         # img = PIL.Image.open(image_path)
-        img = PIL.ImageOps.invert(img)
+        img = PIL.ImageOps.invert(img) # images need to be negative for some reason
         img = np.array(np.array(img, dtype='uint8') > intensity_threshold, dtype='uint8') * 255
         blobs_labels = skimage.measure.label(img, connectivity=1.5)
         blob_counts = np.bincount(blobs_labels.reshape((blobs_labels.shape[0] * blobs_labels.shape[1],)))
@@ -35,17 +35,22 @@ class spatial_randomness_functions(object):
         return np.array(array, dtype='uint8')
 
     def compute_mean_nuclei_center_dist_to_border(self, nuclei_centers, border_points):
-        distances = scipy.spatial.distance.cdist(nuclei_centers, border_points)
-        print('border Points', np.size(border_points))
-        print('nuclei centers',np.size(nuclei_centers))
+        distances = scipy.spatial.distance.cdist(nuclei_centers, border_points,'euclidean')
+        # print('Total cells',np.sum(nuclei_centers>0))
+        # print('border Points', np.size(border_points),border_points.shape)
+        # print('nuclei centers',np.size(nuclei_centers),nuclei_centers.shape)
+        # distances = np.sort(distances,axis=None)
+        # min_dist = np.min(distances)
         min_dist = np.min(distances, axis=1) #array of minimum distances to epithelium layer from each nuclei center
         mean_dist = np.mean(min_dist) #mean distance to epithelium from all cells
-        print(np.size(distances))
-        print('in compute_meam_nuc_ep_dist',np.size(min_dist))
+        # print('size of array containg all pairwise distances',np.size(distances))
+        # print('in compute_meam_nuc_ep_dist: min dist to ep',np.size(min_dist))
         return mean_dist, min_dist
 
     def compute_mean_min_nuclei_center_dist(self, nuclei_centers):
-        distances = cdist(nuclei_centers, nuclei_centers)
+        distances = cdist(nuclei_centers, nuclei_centers,'euclidean')
+        # print('in compute_mean_min_nuclei_center_dist:')
+        # print('shape of distances:',distances.shape)
         distances[distances == 0] = np.inf
         min_dist = np.min(distances, axis=1) #distance to closest nuclei
         mean_dist = np.mean(np.min(distances, axis=1)) #average distance to nearest nuclei
@@ -60,13 +65,16 @@ class spatial_randomness_functions(object):
         border_points = self.array_to_cartesian(border_mask)
         # Begin Boostrap Procedure
         spatial_statistics = np.zeros(num_sim)
-        dist_list = np.zeros(1300)
+        # cell_count = num_centers // 2 # the division by two is because num_centers is a list of xy indices and thus twice as large
+        # dist_list = np.zeros(cell_count*num_sim)
+        dist_list = []
         plot_num_array = np.linspace(0,plot_num, num=plot_num)
+
         for i in range(num_sim):
-            j = i*(i+12)
+            # j = i*(i+cell_count)
             # Randomly sample points from roi_mask_points without replacement
             roi_mask_point_indices = np.random.choice(len(roi_mask_points), size=num_centers, replace=False)
-            bootstrap_centers = roi_mask_points[roi_mask_point_indices]
+            bootstrap_centers = roi_mask_points[roi_mask_point_indices,:]
 
             if i in plot_num_array:
                 bootstrap_centers_array = self.cartesian_to_array(bootstrap_centers, nuclei_centers_array.shape)
@@ -74,12 +82,19 @@ class spatial_randomness_functions(object):
                 title = 'Simulated Data Trial {}'.format(i)
                 sim_and_mask.show(title=title)
 
+            # print('size bootstrap centers before',np.size(bootstrap_centers))
+
             mean_dist, dist = self.compute_mean_nuclei_center_dist_to_border(bootstrap_centers, border_points)
+
+            # print('size bootstrap centers after', np.size(bootstrap_centers))
             spatial_statistics[i] = mean_dist
-            print(dist)
-            dist_list[j:j+12] = dist
-            dist = 0
-            print(i)
+            # print('size of dist', np.size(dist), dist.shape)
+            # dist_list[j:j+cell_count+1] = dist
+            dist_list.append(dist)
+            # print('i = ',i)
+
+        dist_list = np.sort(dist_list,axis=None)
+        print('shape of epithelium dist_list', dist_list.shape)
         return spatial_statistics, dist_list
 
     def nuclei_distance_bootstrap_simulation(self, nuclei_centers_array, roi_mask, num_sim, plot_num=0):
@@ -90,12 +105,12 @@ class spatial_randomness_functions(object):
         # Begin Boostrap Procedure
         spatial_statistics = np.zeros(num_sim)
         # bootstrap_centers_array = np.zeros()
-        dist_list = np.zeros(1300)
+        dist_list = []
         plot_num_array = np.linspace(0, plot_num, num=plot_num)
         for i in range(num_sim):
             # Randomly sample points from roi_mask_points without replacement
             roi_mask_point_indices = np.random.choice(len(roi_mask_points), size=num_centers, replace=False)
-            bootstrap_centers = roi_mask_points[roi_mask_point_indices, :]
+            bootstrap_centers = roi_mask_points[roi_mask_point_indices]
 
             if i in plot_num_array:
                 bootstrap_centers_array = self.cartesian_to_array(bootstrap_centers, nuclei_centers_array.shape)
@@ -107,12 +122,14 @@ class spatial_randomness_functions(object):
             # bootstrap_centers_array[i] = bootstrap_centers
             mean_dist, dist = self.compute_mean_min_nuclei_center_dist(bootstrap_centers)
             spatial_statistics[i] = mean_dist
-
+            dist_list.append(dist)
+        dist_list = np.sort(dist_list,axis=None)
+        print('shape of nuclei dist_list', dist_list.shape)
         return spatial_statistics, dist_list #bootstrap_centers_array
 
-    def perform_border_bootstrap_test(self, data_path, reference_image, intensity_threshold, blob_count_threshold, num_sim, plot_num=0):
-        data = sio.loadmat(data_path)
-        nuclei_centers = data['Nuclei_Dendritic']
+    def perform_border_bootstrap_test(self, nuclei_centers_array, reference_image, intensity_threshold, blob_count_threshold, num_sim, plot_num=0):
+        # data = sio.loadmat(data_path)
+        nuclei_centers = nuclei_centers_array
         roi_mask, border_mask = self.compute_roi_mask_and_border(reference_image, intensity_threshold, blob_count_threshold)
         bootstrap_results, sim_ep_dist = self.border_bootstrap_simulation(nuclei_centers, roi_mask, border_mask, num_sim, plot_num)
 
@@ -128,10 +145,10 @@ class spatial_randomness_functions(object):
         #plt.axvline(observed_spatial_statistic)
         return sim_ep_dist #p_val, observed_spatial_statistic
 
-    def perform_nuclei_bootstrap_test(self, data_path, reference_image_path, intensity_threshold, blob_count_threshold, num_sim, plot_num=0):
-        data = sio.loadmat(data_path)
-        nuclei_centers = data['Nuclei_Dendritic']
-        roi_mask, border_mask = self.compute_roi_mask_and_border(reference_image_path, intensity_threshold, blob_count_threshold)
+    def perform_nuclei_bootstrap_test(self, nuclei_centers_array, reference_image,intensity_threshold, blob_count_threshold, num_sim, plot_num=0):
+        # data = sio.loadmat(data_path)
+        nuclei_centers = nuclei_centers_array
+        roi_mask, border_mask = self.compute_roi_mask_and_border(reference_image, intensity_threshold, blob_count_threshold)
         bootstrap_results, sim_nuc_dist = self.nuclei_distance_bootstrap_simulation(nuclei_centers, roi_mask, num_sim, plot_num)
 
         # observed_spatial_statistic = self.compute_mean_min_nuclei_center_dist(self.array_to_cartesian(nuclei_centers))
