@@ -18,6 +18,8 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
         ThresholdSlider            matlab.ui.control.Slider
         CloseFiguresButton         matlab.ui.control.Button
         DisplayTIFChannelsButton   matlab.ui.control.Button
+        DiskSizeSliderLabel        matlab.ui.control.Label
+        DiskSizeSlider             matlab.ui.control.Slider
     end
 
     
@@ -75,6 +77,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             TifPath = string(app.tif_field.Value);
             File = app.file_name.Value;
             k_threshold = app.ThresholdSlider.Value;
+            disk_size = round(app.DiskSizeSlider.Value);
             % requires ROI to be saved as .csv from Fiji
             try
                 Selection = selection_logical(app,SelectionPath, debug_mode);
@@ -169,7 +172,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             %% Filter dendridic cells
             
             %  gaussian3 = fspecial('Gaussian',15,2);
-            disk3 = fspecial('disk',5);
+            disk_conv = fspecial('disk',disk_size);
             
             D_thresh = FinalImage(:,:,DCindex);
             D = reshape(D_thresh,1,size(D_thresh,1)*size(D_thresh,2));
@@ -184,7 +187,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
                figure('Name','Thresholded DC Channel'); imagesc(D_thresh); axis off;
             end
              
-            Dendridic = convn(D_thresh, disk3,'same');
+            Dendridic = convn(D_thresh, disk_conv,'same');
             Dendridic = Dendridic/max(max(Dendridic));
              
             if debug_mode == 1
@@ -200,7 +203,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             D(Nuclei_Centers == 0) = 0;
             Nuclei_Dendritic(D<tol) = 0;        
             
-            se = strel('disk',10);
+            se = strel('disk',3);
             ND_Display = imdilate(Nuclei_Dendritic,se);
             
             if debug_mode == 1
@@ -213,12 +216,16 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             X(:,:,3) = double(FinalImage(:,:,Nindex))/4095;
             X(:,:,2) = double(FinalImage(:,:,DCindex))/4095;
             X(:,:,1) = double(ND_Display);
-            X1 = X(:,:,3);
-            X1(~Selection) = 0;
-            X(:,:,3) = X1;
+            X3 = X(:,:,3);
+            X3(bwperim(full(~Selection))) = 1;
+            X(:,:,3) = X3;
             X2 = X(:,:,2);
-            X2(~Selection) = 0;
+            X2(bwperim(full(~Selection))) = 1;
             X(:,:,2) = X2;
+            X1 = X(:,:,1);
+            X1(bwperim(full(~Selection))) = 1;
+            X(:,:,1) = X1;
+
             imagesc(X); title(strcat('Nuclei, DC, and DC Centers Threshold=',num2str(tol))); axis off;
             
             %save variables for Stats processing
@@ -421,7 +428,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             % Create CloseFiguresButton
             app.CloseFiguresButton = uibutton(app.UIFigure, 'push');
             app.CloseFiguresButton.ButtonPushedFcn = createCallbackFcn(app, @CloseFiguresButtonPushed, true);
-            app.CloseFiguresButton.Position = [303 29 100 22];
+            app.CloseFiguresButton.Position = [437 193 100 22];
             app.CloseFiguresButton.Text = 'Close Figures';
 
             % Create DisplayTIFChannelsButton
@@ -429,6 +436,20 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             app.DisplayTIFChannelsButton.ButtonPushedFcn = createCallbackFcn(app, @DisplayTIFChannelsButtonPushed, true);
             app.DisplayTIFChannelsButton.Position = [300 194 131 22];
             app.DisplayTIFChannelsButton.Text = 'Display TIF Channels';
+
+            % Create DiskSizeSliderLabel
+            app.DiskSizeSliderLabel = uilabel(app.UIFigure);
+            app.DiskSizeSliderLabel.HorizontalAlignment = 'right';
+            app.DiskSizeSliderLabel.Position = [300 50 56 22];
+            app.DiskSizeSliderLabel.Text = 'Disk Size';
+
+            % Create DiskSizeSlider
+            app.DiskSizeSlider = uislider(app.UIFigure);
+            app.DiskSizeSlider.Limits = [1 10];
+            app.DiskSizeSlider.MajorTicks = [1 2 3 4 5 6 7 8 9 10];
+            app.DiskSizeSlider.MinorTicks = [];
+            app.DiskSizeSlider.Position = [380 59 150 3];
+            app.DiskSizeSlider.Value = 5;
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
