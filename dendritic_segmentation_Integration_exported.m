@@ -18,8 +18,8 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
         ThresholdSlider            matlab.ui.control.Slider
         CloseFiguresButton         matlab.ui.control.Button
         DisplayTIFChannelsButton   matlab.ui.control.Button
-        DiskSizeSliderLabel        matlab.ui.control.Label
-        DiskSizeSlider             matlab.ui.control.Slider
+        DiskSizeSpinnerLabel       matlab.ui.control.Label
+        DiskSizeSpinner            matlab.ui.control.Spinner
     end
 
     
@@ -70,14 +70,14 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
         function run(app)
             % Nindex - layer for Nuclei Information
             % DCindex - layer for Dendridic Information
-            Nindex = app.NucleiChannelSpinner.Value;
-            DCindex = app.DCChannelSpinner.Value;      
-            SelectionPath = app.csv_field.Value;
-            debug_mode = app.debug.Value;
-            TifPath = string(app.tif_field.Value);
-            File = app.file_name.Value;
+            Nindex = app.NucleiChannelSpinner.Value; % nuclei channel
+            DCindex = app.DCChannelSpinner.Value; % dendritic cell channel    
+            SelectionPath = app.csv_field.Value; % ROI Selecion CSV path
+            debug_mode = app.debug.Value; 
+            TifPath = string(app.tif_field.Value); % 3-Channel image path
+            File = app.file_name.Value; % Generated Name of output file, based on input TIF
             k_threshold = app.ThresholdSlider.Value;
-            disk_size = round(app.DiskSizeSlider.Value);
+            disk_size = app.DiskSizeSpinner.Value;% convolution disk radius
             % requires ROI to be saved as .csv from Fiji
             try
                 Selection = selection_logical(app,SelectionPath, debug_mode);
@@ -198,10 +198,9 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
                             
             Nuclei_Dendritic = Nuclei_Centers;
             %D = reshape(Dendridic,1,size(Dendridic,1)*size(Dendridic,2));
-            tol = k_threshold; % input threshold
             D = Dendridic;
             D(Nuclei_Centers == 0) = 0;
-            Nuclei_Dendritic(D<tol) = 0;        
+            Nuclei_Dendritic(D<k_threshold) = 0;        
             
             se = strel('disk',3);
             ND_Display = imdilate(Nuclei_Dendritic,se);
@@ -226,11 +225,24 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             X1(bwperim(full(~Selection))) = 1;
             X(:,:,1) = X1;
 
-            imagesc(X); title(strcat('Nuclei, DC, and DC Centers Threshold=',num2str(tol))); axis off;
+            imagesc(X); title(strcat('Nuclei, DC, and DC Centers Threshold=',num2str(k_threshold))); axis off;
             
             %save variables for Stats processing
             k_threshold_name = strrep(num2str(k_threshold,2),'.','_'); %replace decimals with underscore for file acess
-            save(strcat(File,'thresh',k_threshold_name),'Selection','Nuclei_Centers','Nuclei_Dendritic'); %saves ROI, Nuclie centers, and DC nuclie centers as a 3D binary array
+            saved_file_name = strcat(File,'thresh',k_threshold_name);
+            save(saved_file_name,'Selection','Nuclei_Centers','Nuclei_Dendritic'); %saves ROI, Nuclie centers, and DC nuclie centers as a 3D binary array
+            
+            % save diagnostic TXT file
+            DC_count = sum(Nuclei_Dendritic(:)); % Number of identified DC's
+            params = {'Nuclear Channel','Dendritic Channel', 'Threshold', 'Disk Size', 'DC Count'};
+            param_values = [Nindex, DCindex, k_threshold, disk_size, DC_count];
+            %disp(DC_count);
+            txt_name = strcat(saved_file_name,'.txt');
+            txt_id = fopen(txt_name,'w');
+            for row = 1:length(params)
+                fprintf(txt_id, '%s: %8.3f\n', params{row},param_values(row));
+            end
+            fclose(txt_id);
         end
     end
     
@@ -437,19 +449,17 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             app.DisplayTIFChannelsButton.Position = [300 194 131 22];
             app.DisplayTIFChannelsButton.Text = 'Display TIF Channels';
 
-            % Create DiskSizeSliderLabel
-            app.DiskSizeSliderLabel = uilabel(app.UIFigure);
-            app.DiskSizeSliderLabel.HorizontalAlignment = 'right';
-            app.DiskSizeSliderLabel.Position = [300 50 56 22];
-            app.DiskSizeSliderLabel.Text = 'Disk Size';
+            % Create DiskSizeSpinnerLabel
+            app.DiskSizeSpinnerLabel = uilabel(app.UIFigure);
+            app.DiskSizeSpinnerLabel.HorizontalAlignment = 'right';
+            app.DiskSizeSpinnerLabel.Position = [303 49 56 22];
+            app.DiskSizeSpinnerLabel.Text = 'Disk Size';
 
-            % Create DiskSizeSlider
-            app.DiskSizeSlider = uislider(app.UIFigure);
-            app.DiskSizeSlider.Limits = [1 10];
-            app.DiskSizeSlider.MajorTicks = [1 2 3 4 5 6 7 8 9 10];
-            app.DiskSizeSlider.MinorTicks = [];
-            app.DiskSizeSlider.Position = [380 59 150 3];
-            app.DiskSizeSlider.Value = 5;
+            % Create DiskSizeSpinner
+            app.DiskSizeSpinner = uispinner(app.UIFigure);
+            app.DiskSizeSpinner.Limits = [1 10];
+            app.DiskSizeSpinner.Position = [374 49 100 22];
+            app.DiskSizeSpinner.Value = 5;
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
