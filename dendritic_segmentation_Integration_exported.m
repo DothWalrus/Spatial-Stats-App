@@ -234,8 +234,9 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             
             % save diagnostic TXT file
             DC_count = sum(Nuclei_Dendritic(:)); % Number of identified DC's
-            params = {'Nuclear Channel','Dendritic Channel', 'Threshold', 'Disk Size', 'DC Count'};
-            param_values = [Nindex, DCindex, k_threshold, disk_size, DC_count];
+            nuc_count = sum(Nuclei_Centers(:)); % Number of identified Nuclei
+            params = {'Nuclear Channel','Dendritic Channel', 'Threshold', 'Disk Size','Nuclei Count', 'DC Count'};
+            param_values = [Nindex, DCindex, k_threshold, disk_size, nuc_count, DC_count];
             %disp(DC_count);
             txt_name = strcat(saved_file_name,'.txt');
             txt_id = fopen(txt_name,'w');
@@ -435,7 +436,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             app.ThresholdSlider.MajorTicks = [0 0.2 0.4 0.6 0.8 1];
             app.ThresholdSlider.MinorTicks = [0.1 0.3 0.5 0.7 0.9];
             app.ThresholdSlider.Position = [380 121 150 3];
-            app.ThresholdSlider.Value = 0.2;
+            app.ThresholdSlider.Value = 0.1;
 
             % Create CloseFiguresButton
             app.CloseFiguresButton = uibutton(app.UIFigure, 'push');
