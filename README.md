@@ -1,8 +1,8 @@
 # Spatial-Stats-App
 App used to locate dendritic cell nuclei in images of gastric mucosa.
 ## Installation:
-* For Chrome users, download the dendritic_segmentation_Integration.mlapp file.
-* For other browsers, download dendritic_segmentation_Integration_exported.m
+* For Chrome users, download the dendritic_segmentation_Integration.mlapp file. The dendritic_segmentation_Integration_exported.m file also works.
+* For all browsers, download dendritic_segmentation_Integration_exported.m
 * Log into MATLAB Online on a Chrome browser and upload the file to your MATLAB online repository.
 * Upload the images and their associated Selection.csv files to your MATLAB online repository.
 
@@ -26,9 +26,9 @@ App used to locate dendritic cell nuclei in images of gastric mucosa.
 * The program produces images as well as a .mat and .txt file.
 * The name of the .mat file and .txt will be the same as the selected TIF along with chosen threshold.
 * The .mat file contains the ROI, found nuclear centers, and identified dendritic cells.
-* The .txt file stores the choses parameters and the number of indentified dendritic cells.
+* The .txt file stores the chosen parameters, number of indentified nuclei, and number of identified dendritic cells.
 
-## Outdated:
+## Videos:
 * Use this URL for a video tutorial on the MATLAB app: https://www.youtube.com/watch?v=1bb0FJu9tZc&feature=youtu.be
 * Use this URL for a video overview of the Statistics Pipeline: https://www.youtube.com/watch?v=sl2b1jzobso&feature=youtu.be
 
