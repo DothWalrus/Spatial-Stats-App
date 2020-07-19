@@ -1,4 +1,4 @@
-# Spatial-Stats-App_v2
+# Spatial-Stats-App V2
 * App used to locate dendritic cell nuclei in images of gastric mucosa.
 * Then computes several statistics of the images and compares them to simulated data.
 
