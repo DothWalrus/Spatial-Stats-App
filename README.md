@@ -28,7 +28,7 @@
 * The program produces images as well as a .mat and .txt file.
 * The name of the .mat file and .txt will be the same as the selected TIF along with chosen threshold.
 * The .mat file contains the ROI, found nuclear centers, and identified dendritic cells.
-* The .txt file stores the chosen parameters, number of indentified nuclei, and number of identified dendritic cells.
+* The .txt file stores the chosen parameters, number of indentified nuclei, number of identified dendritic cells, and several statistics.
 
 ## Videos:
 * OUTDATED Use this URL for a video tutorial on the MATLAB app: https://www.youtube.com/watch?v=1bb0FJu9tZc&feature=youtu.be
