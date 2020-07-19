@@ -1,0 +1,212 @@
+import numpy as np
+import scipy.io as sio
+from scipy.misc import toimage
+from scipy.sparse import csr_matrix, csc_matrix
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import seaborn as sns
+import PIL
+from PIL import Image, ImageFilter
+from numpy.linalg import norm
+from scipy.spatial.distance import cdist
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def compute_roi_mask_and_border(image_path, intensity_threshold, blob_count_threshold):
+    img = Image.open(image_path)
+    img = np.array(np.array(img, dtype='uint8') > intensity_threshold, dtype='uint8')*255
+    blobs_labels = measure.label(img, connectivity=1.5)
+    blob_counts = np.bincount(blobs_labels.reshape((blobs_labels.shape[0]*blobs_labels.shape[1], )))
+    
+    # Need to make sure the [1:] is working as an index to filter the cell border
+    roi_mask = np.array(np.isin(blobs_labels, np.where(blob_counts > blob_count_threshold)[0][1:]) == False, dtype='uint8')
+    border_mask = np.array(Image.fromarray(np.array(roi_mask, dtype='uint8')).filter(ImageFilter.FIND_EDGES))
+
+    # Consider returning edge in cartesian format
+    return roi_mask, border_mask
+
+def array_to_cartesian(matrix):
+    points = []  
+    return np.array(np.where(matrix)).transpose()
+
+def cartesian_to_array(points, shape):
+    array = np.zeros(shape)
+    for point in points:
+        array[point[0], point[1]] = 1
+    return np.array(array, dtype='uint8')
+
+def compute_mean_nuclei_center_dist_to_border(nuclei_centers, border_points):
+    distances = cdist(nuclei_centers, border_points)
+    return np.mean(np.min(distances, axis=1))
+
+def compute_mean_min_nuclei_center_dist(nuclei_centers):
+    distances = cdist(nuclei_centers, nuclei_centers)
+    distances[distances == 0] = np.inf
+    return np.mean(np.min(distances, axis=1))
+
+def border_bootstrap_simulation(nuclei_centers_array, roi_mask, border_mask, num_sim):
+    # Count number of nuclei_centers
+    num_centers = np.sum(nuclei_centers_array > 0)
+    # Convert ROI mask to points
+    roi_mask_points = array_to_cartesian(roi_mask)
+    # Define Border Points From Mask
+    border_points = array_to_cartesian(border_mask)
+    # Begin Boostrap Procedure
+    spatial_statistics = np.zeros(num_sim)  
+    for sim_index in range(num_sim):
+        # Randomly sample points from roi_mask_points without replacement
+        roi_mask_point_indices = np.random.choice(len(roi_mask_points), size=num_centers, replace=False)
+        bootstrap_centers = roi_mask_points[roi_mask_point_indices, :]
+        spatial_statistics[sim_index] = compute_mean_nuclei_center_dist_to_border(bootstrap_centers, border_points)
+    return spatial_statistics
+
+def nuclei_distance_bootstrap_simulation(nuclei_centers_array, roi_mask, num_sim):
+    # Count number of nuclei_centers
+    num_centers = np.sum(nuclei_centers_array > 0)
+    # Convert ROI mask to points
+    roi_mask_points = array_to_cartesian(roi_mask)
+    # Begin Boostrap Procedure
+    spatial_statistics = np.zeros(num_sim)
+    for sim_index in range(num_sim):
+        # Randomly sample points from roi_mask_points without replacement
+        roi_mask_point_indices = np.random.choice(len(roi_mask_points), size=num_centers, replace=False)
+        bootstrap_centers = roi_mask_points[roi_mask_point_indices, :]
+        spatial_statistics[sim_index] = compute_mean_min_nuclei_center_dist(bootstrap_centers)  
+    return spatial_statistics
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+data = sio.loadmat('New images March 2019/#34 a2-1/34a2_1_med_0std.mat')
+
+np.mean(np.min(cdist(array_to_cartesian(data['Nuclei_Centers']), array_to_cartesian(test2)), axis=1))
+compute_mean_nuclei_center_dist_to_border(array_to_cartesian(data['Nuclei_Centers']), array_to_cartesian(test2))
+
+test1, test2 = compute_roi_mask_and_border('New images March 2019/#34 a2-1/#34 a2-1 20x.tif', 150, 1000)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+paths_dict = {'#34 a2-1': ['34a2_1_med_0std.mat', '#34 a2-1 20x.tif'],
+              '#34 a2-2': ['34a2_2_med_0std.mat', '#34 a2-2 20x.tif'],
+              '#34 a3-2': ['34a3_2_med_0std.mat', '#34 a3-2 20x.tif'],
+              '#34 a5-2': ['34a5_2_med_0std.mat', '#34 a5-2 20x.tif'],
+              '#34 a6-1': ['34a6_1_med_0std.mat', '#34 a6-1 20x.tif'],
+              '#34 a7-1': ['34a7_1_med_0std.mat', '#34 a7-1 20x.tif'],
+              '#34 a9-2': ['34a9_2_med_0std.mat', '#34 a9-2 20x.tif'],
+              '#34 b1-1': ['34b1_1_med_0std.mat', '#34 b1-1 20x.tif'],
+              '#34 b2-1': ['34b2_1_med_0std.mat', '#34 b2-1 20x.tif'],
+              '#34 b3-1': ['34b3_1_med_0std.mat', '#34 b3-1 20x.tif'],
+              '#34 b4-2': ['34b4_2_med_0std.mat', '#34 b4-2 20x.tif'],
+              '#34 b5-2': ['34b5_2_med_0std.mat', '#34 b5-2 20x.tif'],
+              '#34 b7-3': ['34b7_3_med_0std.mat', '#34 b7-3 20x.tif'],
+              '#34 b8-1': ['34b8_1_med_0std.mat', '#34 b8-1 20x-1.tif'],
+              '#34 b9-1': ['34b9_1_med_0std.mat', '#34 b9-1 20x.tif'],
+              '#34 c4-2': ['34c4_2_med_0std.mat', '#34 c4-2 20x.tif']    
+}
+
+for key in paths_dict.keys():
+    try:
+        data = sio.loadmat('New images March 2019/' + key + '/' + paths_dict[key][0])
+        img = Image.open('New images March 2019/' + key + '/' + paths_dict[key][1])
+    except:
+        print('Had an error opening ' + key)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sample_data_path = 'New images March 2019/#34 a2-1/34a2_1_med_0std.mat'
+sample_image_path = 'New images March 2019/#34 a2-1/#34 a2-1 20x.tif'
+sample_intensity_threshold = 150
+sample_blob_count_threshold = 1000
+
+def perform_border_bootstrap_test(data_path, reference_image_path, intensity_threshold, blob_count_threshold, num_sim):
+    
+    data = sio.loadmat(data_path)
+    nuclei_centers = data['Nuclei_Centers']
+    roi_mask, border_mask = compute_roi_mask_and_border(sample_image_path, intensity_threshold, blob_count_threshold)
+    
+    bootstrap_results = border_bootstrap_simulation(nuclei_centers, roi_mask, border_mask, num_sim)
+    
+    observed_spatial_statistic = compute_mean_nuclei_center_dist_to_border(array_to_cartesian(nuclei_centers), array_to_cartesian(border_mask))
+    
+    p_val = np.sum(bootstrap_results > observed_spatial_statistic)/len(bootstrap_results)
+    
+    if p_val == 1.0:
+        print('Observed is farther from border than observed')
+        p_val = np.sum(bootstrap_results < observed_spatial_statistic)/len(bootstrap_results)
+    
+    
+    ax = sns.distplot(bootstrap_results)
+    plt.axvline(observed_spatial_statistic)
+    
+    return p_val, observed_spatial_statistic
+
+def perform_nuclei_bootstrap_test(data_path, reference_image_path, intensity_threshold, blob_count_threshold, num_sim):
+    data = sio.loadmat(data_path)
+    nuclei_centers = data['Nuclei_Centers']
+    roi_mask, border_mask = compute_roi_mask_and_border(sample_image_path, intensity_threshold, blob_count_threshold)
+    
+    bootstrap_results = nuclei_distance_bootstrap_simulation(nuclei_centers, roi_mask, border_mask, num_sim)
+    
+    observed_spatial_statistic = compute_mean_min_nuclei_center_dist(array_to_cartesian(nuclei_centers))
+    
+    p_val = np.sum(bootstrap_results > observed_spatial_statistic)/len(bootstrap_results)
+    
+    if p_val == 1.0:
+        print('Observed has higher mean nuclei distance than observed')
+        p_val = np.sum(bootstrap_results < observed_spatial_statistic)/len(bootstrap_results)
+    
+    
+    ax = sns.distplot(bootstrap_results)
+    plt.axvline(observed_spatial_statistic)
+    
+    return p_val, observed_spatial_statistic
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+for key in paths_dict.keys():
+    print(key)
+    data_path = 'New images March 2019/' + key + '/' + paths_dict[key][0]
+    reference_image_path = 'New images March 2019/' + key + '/' + paths_dict[key][1]
+    print(perform_border_bootstrap_test(data_path, reference_image_path, 150, 1000, 100))
+
+not_infected_border_dists = [25.260582691751985, 21.708321290575178, 18.90475177182989, 18.3503460194175, 19.195422872995987, 16.64837500141929, 19.539147247238763, 18.985181205617867]
+infected_border_dists = [21.23510223634364, 19.712141898846927, 19.918259141696986, 19.426236210638088, 19.100607167426983, 19.442076821424074, 20.156568303602125,20.01597163099225]
+
+not_infected_border_dists = [25.260582691751985, 21.708321290575178, 18.90475177182989, 18.3503460194175, 19.195422872995987, 16.64837500141929, 19.539147247238763, 18.985181205617867]
+infected_border_dists = [21.23510223634364, 19.712141898846927, 19.918259141696986, 19.426236210638088, 19.100607167426983, 19.442076821424074, 20.156568303602125,20.01597163099225]
+
+fig, ax = plt.subplots(dpi=1000)
+
+sns.distplot(not_infected_border_dists, ax=ax, label='Non-Infected')
+sns.distplot(infected_border_dists, ax=ax, label='Infected')
+ax.set_title('Density Plot of Mean Nuclei \n Distance to Cell Edge', fontsize=18)
+ax.set_xlabel('Pixels', fontsize=18)
+ax.legend(fontsize=16)
+ax.set_yticks([])
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+for key in paths_dict.keys():
+    print(key)
+    data_path = 'New images March 2019/' + key + '/' + paths_dict[key][0]
+    reference_image_path = 'New images March 2019/' + key + '/' + paths_dict[key][1]
+    print(perform_nuclei_bootstrap_test(data_path, reference_image_path, 150, 1000, 100))
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+non_infected_mean_min = [18.11330373, 17.71030505, 18.76769729, 19.00663107, 18.70095769, 17.85960056, 19.09293695, 18.2627691]
+infected_mean_min = [18.61139906, 18.13983507, 18.37084686, 17.53309838, 18.46291703, 17.88457097, 18.36523828, 17.99851943]
+
+fig, ax = plt.subplots(dpi=1000)
+
+sns.distplot(non_infected_mean_min, ax=ax, label='Non-Infected')
+sns.distplot(infected_mean_min, ax=ax, label='Infected')
+ax.set_title('Density Plot of Mean-Min Inter-Nuclei Distance', fontsize=18)
+ax.set_xlabel('Pixels', fontsize=18)
+ax.legend(fontsize=14)
+ax.set_yticks([])
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+np.mean(non_infected_mean_min), np.mean(infected_mean_min)
+
+np.std(non_infected_mean_min), np.std(infected_mean_min)
