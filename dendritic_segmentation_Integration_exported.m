@@ -70,7 +70,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             end
             if save_img == 1
                 saved_img_name = strcat(File,"_roi_mask.png");
-                imwrite(255*full(Selection_Image), parula(256), saved_img_name);
+                imwrite(255*full(Selection_Image), parula, saved_img_name);
             end
         end
         
@@ -167,17 +167,20 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
                 figure('Name','imregionalmax Corrected'); imagesc(NC_Display); axis off;              
                 %figure('Name','Nuclei Centers'); imagesc(NC_Display); axis off;
                 %figure('Name','Nucei Image'); imagesc(FinalImage(:,:,Nindex)); title("Nuclei Image"); axis off;
-                figure('Name','Nuclei Image After DoG Convolution'); imagesc(Nuclei); axis off;
+                nuc_chnl_dog_img = Nuclei;
+                figure('Name','Nuclei Image After DoG Convolution'); imagesc(nuc_chnl_dog_img); axis off;
                 %figure('Name','Nuclei Center Locations'); imagesc(NC_Display); title("Nuclei Center locations"); axis off;
                 %figure('Name','Nuclei Centers Over Nuclei Image'); imagesc(150*NC_Display + 0.1*double(FinalImage(:,:,Nindex))); title("Nuclei over Nuclei Image"); axis off;
                 figure('Name','High Contrast Nuclei Centers Over Nuclei Image'); imshowpair(FinalImage(:,:,Nindex),NC_Display); axis off;
             end
             if save_img == 1
                 saved_img_name = strcat(File,"_immax_corrected.png");
-                imwrite(255*NC_Display, parula(256), saved_img_name);
+                imwrite(255*NC_Display, parula(256), saved_img_name);                 
                 saved_img_name = strcat(File,"_nuc_chnl_dog_filter.png");
-                imwrite(Nuclei, parula(256), saved_img_name);
+                nuclei_scaled = double((Nuclei-min(Nuclei(:)))./double(max(Nuclei(:))-min(Nuclei(:))));
+                imwrite(1+round(nuclei_scaled*255), parula, saved_img_name);               
                 saved_img_name = strcat(File,"_nuc_chnl_found_nuc.png");
+            
                 nuc_chnl_found_nuc = imfuse(FinalImage(:,:,Nindex),NC_Display);
                 imwrite(nuc_chnl_found_nuc, saved_img_name);
             end              
@@ -201,10 +204,12 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             end
             if save_img == 1
                 saved_img_name = strcat(File,"_dc_chnl_thresh.png");
-                D_thresh_adj = imadjust(D_thresh,[0;0.1],[0;1],0.6); % Could maybe be tweaked more
-                imwrite(D_thresh_adj, parula(256), saved_img_name, 'BitDepth',8);
+                %disp('D_thresh: '); disp(nonzeros(D_thresh));
+                d_thresh_scaled = double((D_thresh-min(nonzeros(D_thresh))))./double(max(D_thresh(:))-min(nonzeros(D_thresh)));
+                %disp('d_thresh_scaled: '); disp(nonzeros(d_thresh_scaled));
+                imwrite(d_thresh_scaled*255, parula, saved_img_name);
             end
-             
+            
             dendritic = convn(D_thresh, disk_conv,'same');
             dendritic = dendritic/max(max(dendritic));
              
@@ -213,11 +218,11 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             end
             if save_img == 1
                 saved_img_name = strcat(File,"_dc_chnl_conv.png");
-                imwrite(dendritic, parula(256), saved_img_name);
-            end            
-            
-           % Threshold nuclei centers based on Dendridic Cells
-                            
+                dendritic_scaled = double(dendritic-min(nonzeros(dendritic)))./double(max(dendritic(:))-min(nonzeros(dendritic)));
+                imwrite(dendritic_scaled*255, parula, saved_img_name);
+            end                
+
+           % Threshold nuclei centers based on Dendridic Cells                           
             Nuclei_Dendritic = Nuclei_Centers;
             %D = reshape(Dendridic,1,size(Dendridic,1)*size(Dendridic,2));
             D = dendritic;
@@ -288,7 +293,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             end
             if save_img == 1
                 saved_img_name = strcat(File,"_roi_border.png");
-                imwrite(255*full(border), parula(256), saved_img_name);
+                imwrite(255*full(border), parula, saved_img_name);
             end     
 
             % extract DC Nuclei centers; save as sparse array, and M x 2 list of coordinates
@@ -315,8 +320,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             cell_cell_dist_max = max(cell_cell_distances);
             cell_cell_dist_mean = mean(cell_cell_distances);
             
-            % save real image spatial information
-            
+            % save real image spatial information           
             cell_dist_csv_name = strcat(File,'_thresh_',k_threshold_name,'_real_cell_distance_info.csv');
             cell_ep_column = reshape(cell_ep_distances, [length(cell_ep_distances),1]);
             cell_cell_column = reshape(cell_cell_distances, [length(cell_cell_distances),1]);
@@ -344,15 +348,18 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             bootstrap_cell_ep_stats = [min(bootstrap_cell_ep_distances,[],2), max(bootstrap_cell_ep_distances,[],2), mean(bootstrap_cell_ep_distances,2)];
             bootstrap_cell_cell_stats = [min(bootstrap_cell_cell_distances,[],2), max(bootstrap_cell_cell_distances,[],2), mean(bootstrap_cell_cell_distances,2)];
             
-            % save simulated image spatial information
-            sim_cell_dist_csv_name = strcat(File, '_thresh_', k_threshold_name, '_sim_cell_distance_info.csv');
+            % save simulated DC Ep distance information
+            sim_cell_ep_dist_csv_name = strcat(File, '_thresh_', k_threshold_name, '_sim_cell_ep_dist_info.csv');
             sim_cell_ep_column = bootstrap_cell_ep_distances'; 
+            sim_T = table(sim_cell_ep_column); % cell_ep_dist_max,cell_ep_dist_min, cell_ep_dist_mean, cell_cell_dist_max, cell_cell_dist_min, cell_cell_dist_mean);
+            writetable(sim_T, sim_cell_ep_dist_csv_name);
+            % save simulated DC DC distance information
+            sim_cell_cell_dist_csv_name = strcat(File, '_thresh_', k_threshold_name, '_sim_cell_cell_dist_info.csv');
             sim_cell_cell_column = bootstrap_cell_cell_distances'; 
-            sim_T = table(sim_cell_ep_column, sim_cell_cell_column); % cell_ep_dist_max,cell_ep_dist_min, cell_ep_dist_mean, cell_cell_dist_max, cell_cell_dist_min, cell_cell_dist_mean);
-            writetable(sim_T, sim_cell_dist_csv_name);
+            sim_T = table(sim_cell_cell_column); % cell_ep_dist_max,cell_ep_dist_min, cell_ep_dist_mean, cell_cell_dist_max, cell_cell_dist_min, cell_cell_dist_mean);
+            writetable(sim_T, sim_cell_cell_dist_csv_name);
             
-            %% Plot the Real Data and Simulated data in relative count histograms
-
+            %% Plot the Real Data and Simulated data in relative count histograms   
             % Epithelium distance
             figure('Name', 'DC--epithelium distances');
             histogram(bootstrap_cell_ep_distances(:), 'Normalization', 'pdf', 'FaceAlpha', 0.5, 'EdgeAlpha', 0.5 );  hold on;
@@ -397,8 +404,8 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             %% Diagnostice TXT file output
             DC_count = sum(Nuclei_Dendritic(:)); % Number of identified DC's
             nuc_count = sum(Nuclei_Centers(:)); % Number of identified Nuclei
-            params = {'Nuclear Channel','Dendritic Channel', 'Threshold', 'Disk Size','Nuclei Count', 'DC Count', 'Real Max Cell Ep Dist', 'Real Min Cell Ep Dist', 'Real Mean Cell Ep Dist', 'Real Max Cell Cell Dist', 'Real Min Cell Cell Dist', 'Real Mean Cell Cell Dist'};
-            param_values = [Nindex, DCindex, k_threshold, disk_size, nuc_count, DC_count, cell_ep_dist_max, cell_ep_dist_min, cell_ep_dist_mean, cell_cell_dist_max, cell_cell_dist_min, cell_cell_dist_mean];
+            params = {'Nuclear Channel','Dendritic Channel', 'Threshold', 'Disk Size','Nuclei Count', 'DC Count', 'Real Max DC Ep Dist', 'Real Min DC Ep Dist', 'Real Mean DC Ep Dist', 'Real Max DC DC Dist', 'Real Min DC DC Dist', 'Real Mean DC DC Dist', 'Simulated Max DC Ep Dist', 'Simulated Min DC Ep Dist', 'Simulated Mean DC Ep Dist', 'Simulated Max DC DC Dist', 'Simulated Min DC DC Dist', 'Simulated Mean DC DC Dist'};
+            param_values = [Nindex, DCindex, k_threshold, disk_size, nuc_count, DC_count, cell_ep_dist_max, cell_ep_dist_min, cell_ep_dist_mean, cell_cell_dist_max, cell_cell_dist_min, cell_cell_dist_mean, max(bootstrap_cell_ep_distances(:)), min(bootstrap_cell_ep_distances(:)), mean(bootstrap_cell_ep_distances(:)), max(bootstrap_cell_cell_distances(:)), min(bootstrap_cell_cell_distances(:)), mean(bootstrap_cell_cell_distances(:))];
             %disp(DC_count);
             txt_name = strcat(saved_file_name,'.txt');
             txt_id = fopen(txt_name,'w');
@@ -625,7 +632,6 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
 
             % Create SavePicturesCheckBox
             app.SavePicturesCheckBox = uicheckbox(app.UIFigure);
-            app.SavePicturesCheckBox.Enable = 'off';
             app.SavePicturesCheckBox.Text = 'Save Pictures';
             app.SavePicturesCheckBox.Position = [374 149 96 22];
 
