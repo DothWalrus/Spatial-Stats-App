@@ -270,7 +270,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             roi_data = Selection; 
             [i,j] = find(roi_data);
             XYROI = [i,j];
-            ROIarea = size(XYROI,1);  
+            ROIarea = size(XYROI,1);
 
             % Arguably redundant           
 %             if debug_mode == 1
@@ -281,7 +281,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
 %                 saved_img_name = strcat(File,"roi_data.png");
 %                 imwrite(255*roi_data, parula(256), saved_img_name);
 %             end     
-            
+
             % compute the perimeter of the ROI; save as sparse array, and M x 2 list of coordinates
             border = sparse(bwperim(full(roi_data)));
             [i,j] = find(border);
@@ -306,6 +306,7 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             %% Calculate real nuclei statistics
             
             microns_per_pxl = app.microns_per_pxl_fld.Value; % convert pixles to microns
+            scaled_roi_area = microns_per_pxl^2 * ROIarea;
             
             % compute distances between nuclei and nearest bdry point
             cell_ep_distances = microns_per_pxl*pdist2( XYborder, XYnuclei_centers, 'euclidean', 'Smallest', 1 );
@@ -404,8 +405,8 @@ classdef dendritic_segmentation_Integration_exported < matlab.apps.AppBase
             %% Diagnostice TXT file output
             DC_count = sum(Nuclei_Dendritic(:)); % Number of identified DC's
             nuc_count = sum(Nuclei_Centers(:)); % Number of identified Nuclei
-            params = {'Nuclear Channel','Dendritic Channel', 'Threshold', 'Disk Size','Nuclei Count', 'DC Count', 'Real Max DC Ep Dist', 'Real Min DC Ep Dist', 'Real Mean DC Ep Dist', 'Real Max DC DC Dist', 'Real Min DC DC Dist', 'Real Mean DC DC Dist', 'Simulated Max DC Ep Dist', 'Simulated Min DC Ep Dist', 'Simulated Mean DC Ep Dist', 'Simulated Max DC DC Dist', 'Simulated Min DC DC Dist', 'Simulated Mean DC DC Dist'};
-            param_values = [Nindex, DCindex, k_threshold, disk_size, nuc_count, DC_count, cell_ep_dist_max, cell_ep_dist_min, cell_ep_dist_mean, cell_cell_dist_max, cell_cell_dist_min, cell_cell_dist_mean, max(bootstrap_cell_ep_distances(:)), min(bootstrap_cell_ep_distances(:)), mean(bootstrap_cell_ep_distances(:)), max(bootstrap_cell_cell_distances(:)), min(bootstrap_cell_cell_distances(:)), mean(bootstrap_cell_cell_distances(:))];
+            params = {'Nuclear Channel','Dendritic Channel', 'Threshold', 'Disk Size','Nuclei Count', 'DC Count','ROI Area (microns^2)', 'Real Max DC Ep Dist (microns)', 'Real Min DC Ep Dist (microns)', 'Real Mean DC Ep Dist (microns)', 'Real Max DC DC Dist (microns)', 'Real Min DC DC Dist (microns)', 'Real Mean DC DC Dist (microns)', 'Simulated Max DC Ep Dist (microns)', 'Simulated Min DC Ep Dist (microns)', 'Simulated Mean DC Ep Dist (microns)', 'Simulated Max DC DC Dist (microns)', 'Simulated Min DC DC Dist (microns)', 'Simulated Mean DC DC Dist (microns)'};
+            param_values = [Nindex, DCindex, k_threshold, disk_size, nuc_count, DC_count, scaled_roi_area, cell_ep_dist_max, cell_ep_dist_min, cell_ep_dist_mean, cell_cell_dist_max, cell_cell_dist_min, cell_cell_dist_mean, max(bootstrap_cell_ep_distances(:)), min(bootstrap_cell_ep_distances(:)), mean(bootstrap_cell_ep_distances(:)), max(bootstrap_cell_cell_distances(:)), min(bootstrap_cell_cell_distances(:)), mean(bootstrap_cell_cell_distances(:))];
             %disp(DC_count);
             txt_name = strcat(saved_file_name,'.txt');
             txt_id = fopen(txt_name,'w');
